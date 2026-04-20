@@ -45,7 +45,7 @@ type Result = ScoredSolution | None
 
 def read_data(f: TextIO) -> Data:
     lines = [line.strip() for line in f if line.strip()]
-    l_total = int(lines[0])
+    l_total = int(lines[0].lstrip('\ufeff'))
     jugs = []
     for line in lines[1:]:
         jugs.append(tuple(map(int, line.split())))
@@ -54,42 +54,43 @@ def read_data(f: TextIO) -> Data:
 
 def process(data: Data) -> Result:
     capacity, jugs = data
-    jugs=sorted(jugs, key=lambda x: x[1]/x[0])
     n = len(jugs)
 
     @dataclass
     class Extra:
         liters: int
         cost: int
+        score: int
+
+    score_factor = capacity + 1
+    suffix_min = [[infinity] * (capacity + 1) for _ in range(n + 1)]
+    suffix_min[n][0] = 0
+
+    for i in range(n - 1, -1, -1):
+        cap, price = jugs[i]
+        row = suffix_min[i]
+        next_row = suffix_min[i + 1]
+
+        for remaining in range(capacity + 1):
+            best = next_row[remaining]
+            max_uses = remaining // cap
+
+            for uses in range(1, max_uses + 1):
+                bought = (uses + 2) // 3
+                candidate = bought * price * score_factor + bought + next_row[remaining - uses * cap]
+                if candidate < best:
+                    best = candidate
+
+            row[remaining] = best
 
     class WaterTank(BabDecisionSequence[int, Extra, int]):
 
         def calculate_opt_bound(self) -> int:
-            liters, cost = self.extra.liters, self.extra.cost
-
-            for i in range(len(self), n):
-                cap, price = jugs[i]
-                if liters >= cap:
-                    break
-                f = min(1, (capacity - liters) / cap)
-                liters += f * cap
-                cost += f * price
-
-            return cost
+            remaining = capacity - self.extra.liters
+            return self.extra.score + suffix_min[len(self)][remaining]
 
         def calculate_pes_bound(self) -> int:
-            liters, cost = self.extra.liters, self.extra.cost
-
-            for i in range(len(self), n):
-                cap, price = jugs[i]
-                if liters + cap <= capacity:
-                    liters += cap
-                    cost += price
-
-            if liters < capacity:
-                return infinity
-
-            return cost
+            return self.calculate_opt_bound()
 
         def is_solution(self) -> bool:
             return self.extra.liters == capacity
@@ -100,30 +101,42 @@ def process(data: Data) -> Result:
                 return
 
             cap, price = jugs[i]
+            remaining = capacity - self.extra.liters
+            children = []
 
-            if self.extra.liters + cap <= capacity:
-                yield self.add_decision(1, Extra(self.extra.liters + cap,self.extra.cost + price))
+            for uses in range(remaining // cap, -1, -1):
+                bought = (uses + 2) // 3
+                liters = self.extra.liters + uses * cap
+                cost = self.extra.cost + bought * price
+                score = self.extra.score + bought * price * score_factor + bought
+                children.append(self.add_decision(uses, Extra(liters, cost, score)))
 
-            yield self.add_decision(0, self.extra)
+            children.sort(key=lambda child: child.opt())
+            yield from children
 
         def state(self):
             return (len(self), self.extra.liters)
 
-    initial = WaterTank(Extra(0,0))
+    initial = WaterTank(Extra(0, 0, 0))
     result = bab_min_solve(initial)
 
     if result is None:
         return None
 
     score, sol_ds = result
-    return score, list(sol_ds.decisions())
+    decisions = list(sol_ds.decisions())
+    while len(decisions) < n:
+        decisions.append(0)
+    return sol_ds.extra.cost, decisions
 
 def show_result(result: Result) -> None:
     if result is None:
         print("NO SOLUTION")
     else:
         score, solutions = result
-        print(score, solutions)
+        print(score)
+        for uses in solutions:
+            print((uses + 2) // 3, uses)
 
 
 # --- PROGRAMA PRINCIPAL -----
