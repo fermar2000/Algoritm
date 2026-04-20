@@ -1,6 +1,5 @@
 import sys
 from dataclasses import dataclass
-from json.encoder import INFINITY
 from typing import TextIO, Iterator, Self
 from algoritmia.schemes.bab_scheme import BabDecisionSequence, bab_min_solve
 
@@ -55,6 +54,7 @@ def read_data(f: TextIO) -> Data:
 
 def process(data: Data) -> Result:
     capacity, jugs = data
+    jugs=sorted(jugs, key=lambda x: x[1]/x[0])
     n = len(jugs)
 
     @dataclass
@@ -65,8 +65,7 @@ def process(data: Data) -> Result:
     class WaterTank(BabDecisionSequence[int, Extra, int]):
 
         def calculate_opt_bound(self) -> int:
-            liters = self.extra.liters
-            cost = self.extra.cost
+            liters, cost = self.extra.liters, self.extra.cost
 
             for i in range(len(self), n):
                 cap, price = jugs[i]
@@ -79,8 +78,7 @@ def process(data: Data) -> Result:
             return cost
 
         def calculate_pes_bound(self) -> int:
-            liters = self.extra.liters
-            cost = self.extra.cost
+            liters, cost = self.extra.liters, self.extra.cost
 
             for i in range(len(self), n):
                 cap, price = jugs[i]
@@ -125,7 +123,7 @@ def show_result(result: Result) -> None:
         print("NO SOLUTION")
     else:
         score, solutions = result
-        print(score)
+        print(score, solutions)
 
 
 # --- PROGRAMA PRINCIPAL -----
