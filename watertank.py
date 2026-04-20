@@ -135,8 +135,6 @@ def show_result(result: Result) -> None:
     else:
         score, solutions = result
         print(score)
-        for uses in solutions:
-            print((uses + 2) // 3, uses)
 
 
 # --- PROGRAMA PRINCIPAL -----
