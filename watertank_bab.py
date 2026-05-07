@@ -62,35 +62,37 @@ def process(data: Data) -> Result:
         cost: int
         score: int
 
+    def bought_jugs(uses: int) -> int:
+        return (uses + 2) // 3
+
     score_factor = capacity + 1
-    suffix_min = [[infinity] * (capacity + 1) for _ in range(n + 1)]
-    suffix_min[n][0] = 0
-
+    best_ratio_suffix: list[tuple[int, int] | None] = [None] * (n + 1)
+    best_ratio = None
     for i in range(n - 1, -1, -1):
-        cap, price = jugs[i]
-        row = suffix_min[i]
-        next_row = suffix_min[i + 1]
-
-        for remaining in range(capacity + 1):
-            best = next_row[remaining]
-            max_uses = remaining // cap
-
-            for uses in range(1, max_uses + 1):
-                bought = (uses + 2) // 3
-                candidate = bought * price * score_factor + bought + next_row[remaining - uses * cap]
-                if candidate < best:
-                    best = candidate
-
-            row[remaining] = best
+        jug_capacity, jug_price = jugs[i]
+        ratio = (jug_price, 3 * jug_capacity)
+        if best_ratio is None or ratio[0] * best_ratio[1] < best_ratio[0] * ratio[1]:
+            best_ratio = ratio
+        best_ratio_suffix[i] = best_ratio
 
     class WaterTank(BabDecisionSequence[int, Extra, int]):
 
         def calculate_opt_bound(self) -> int:
             remaining = capacity - self.extra.liters
-            return self.extra.score + suffix_min[len(self)][remaining]
+            if remaining == 0:
+                return self.extra.score
+            best_ratio = best_ratio_suffix[len(self)]
+            if best_ratio is None:
+                return infinity
+
+            price, max_liters = best_ratio
+            optimistic_cost = (remaining * price + max_liters - 1) // max_liters
+            return self.extra.score + optimistic_cost * score_factor
 
         def calculate_pes_bound(self) -> int:
-            return self.calculate_opt_bound()
+            if self.is_solution():
+                return self.extra.score
+            return infinity
 
         def is_solution(self) -> bool:
             return self.extra.liters == capacity
@@ -105,7 +107,7 @@ def process(data: Data) -> Result:
             children = []
 
             for uses in range(remaining // cap, -1, -1):
-                bought = (uses + 2) // 3
+                bought = bought_jugs(uses)
                 liters = self.extra.liters + uses * cap
                 cost = self.extra.cost + bought * price
                 score = self.extra.score + bought * price * score_factor + bought
@@ -123,10 +125,10 @@ def process(data: Data) -> Result:
     if result is None:
         return None
 
-    score, sol_ds = result
+    _, sol_ds = result
     decisions: Solution = []
     for uses in sol_ds.decisions():
-        bought = (uses + 2) // 3
+        bought = bought_jugs(uses)
         decisions.append((bought, uses))
     while len(decisions) < n:
         decisions.append((0, 0))
