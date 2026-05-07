@@ -55,14 +55,14 @@ def process(data: Data) -> Result:
         return (uses + 2) // 3
 
     def S(liters: int, n: int) -> Score:
-        if n == 0:
-            return 0 if liters == 0 else infinity
+        if liters == 0 and n == 0:
+            return 0
+        if liters > 0 and n == 0:
+            return infinity
 
         if (liters, n) not in mem:
             jug_capacity, jug_price = jugs[n - 1]
-            best_score = infinity
-            best_previous = (-1, -1)
-            best_decision = (0, 0)
+            mem[liters, n] = infinity, (-1, -1), (-1, -1)
 
             for uses in range(liters // jug_capacity + 1):
                 bought = bought_jugs(uses)
@@ -70,29 +70,25 @@ def process(data: Data) -> Result:
                 previous_score = S(previous_liters, n - 1)
                 current_score = previous_score + bought * jug_price
 
-                if current_score < best_score:
-                    best_score = current_score
-                    best_previous = (previous_liters, n - 1)
-                    best_decision = (bought, uses)
-
-            mem[liters, n] = best_score, best_previous, best_decision
+                if current_score < mem[liters, n][0]:
+                    mem[liters, n] = current_score, (previous_liters, n - 1), (bought, uses)
 
         return mem[liters, n][0]
 
     mem: dict[SParams, tuple[Score, SParams, Decision]] = {}
     score = S(capacity, len(jugs))
 
-    if score == infinity:
-        return None
-
     decisions: Solution = []
-    liters, n = capacity, len(jugs)
-    while n > 0:
-        _, (liters, n), decision = mem[liters, n]
-        decisions.append(decision)
+    if score != infinity:
+        liters, n = capacity, len(jugs)
+        while (liters, n) != (0, 0):
+            _, (liters, n), decision = mem[liters, n]
+            decisions.append(decision)
 
-    decisions.reverse()
-    return score, decisions
+        decisions.reverse()
+        return score, decisions
+
+    return None
 
 def show_result(result: Result) -> None:
     if result is None:
