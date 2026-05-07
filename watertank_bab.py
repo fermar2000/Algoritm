@@ -35,7 +35,7 @@ infinity = 10**10                   # Un entero suficientemente grande
 type Jug = tuple[int, int]          # Una jarra: (capacidad, precio)
 type Data = tuple[int, list[Jug]]
 
-type Decision = int                 # Debes obtenerlo de tu conjunto de soluciones (X)
+type Decision = tuple[int, int]     # Una decision: (jarras compradas, usos)
 type Solution = list[Decision]
 type Score = int
 type ScoredSolution = tuple[Score, Solution]
@@ -45,7 +45,7 @@ type Result = ScoredSolution | None
 
 def read_data(f: TextIO) -> Data:
     lines = [line.strip() for line in f if line.strip()]
-    l_total = int(lines[0].lstrip('\ufeff'))
+    l_total = int(lines[0])
     jugs = []
     for line in lines[1:]:
         jugs.append(tuple(map(int, line.split())))
@@ -124,9 +124,12 @@ def process(data: Data) -> Result:
         return None
 
     score, sol_ds = result
-    decisions = list(sol_ds.decisions())
+    decisions: Solution = []
+    for uses in sol_ds.decisions():
+        bought = (uses + 2) // 3
+        decisions.append((bought, uses))
     while len(decisions) < n:
-        decisions.append(0)
+        decisions.append((0, 0))
     return sol_ds.extra.cost, decisions
 
 def show_result(result: Result) -> None:
@@ -135,6 +138,8 @@ def show_result(result: Result) -> None:
     else:
         score, solutions = result
         print(score)
+        for bought, uses in solutions:
+            print(bought, uses)
 
 
 # --- PROGRAMA PRINCIPAL -----
